@@ -98,6 +98,9 @@ export default async function seedDemoData({ container }: ExecArgs) {
         {
           currency_code: "usd",
         },
+        {
+          currency_code: "lkr",
+        },
       ],
     },
   });
@@ -111,29 +114,43 @@ export default async function seedDemoData({ container }: ExecArgs) {
     },
   });
   logger.info("Seeding region data...");
-  const { result: regionResult } = await createRegionsWorkflow(container).run({
-    input: {
-      regions: [
-        {
-          name: "Europe",
-          currency_code: "eur",
-          countries,
-          payment_providers: ["pp_system_default"],
-        },
-      ],
-    },
-  });
+  let regionResult;
+  try {
+    const { result } = await createRegionsWorkflow(container).run({
+      input: {
+        regions: [
+          {
+            name: "Europe",
+            currency_code: "eur",
+            countries,
+            payment_providers: ["pp_system_default"],
+          },
+          {
+            name: "Asia",
+            currency_code: "lkr",
+            countries: ["lk"],
+            payment_providers: ["pp_system_default"],
+          },
+        ],
+      },
+    });
+    regionResult = result;
+    logger.info("Finished seeding regions.");
+    
+    logger.info("Seeding tax regions...");
+    await createTaxRegionsWorkflow(container).run({
+      input: countries.map((country_code) => ({
+        country_code,
+        provider_id: "tp_system",
+      })),
+    });
+    logger.info("Finished seeding tax regions.");
+  } catch (e) {
+    logger.info("Regions already exist, skipping...");
+    const { data } = await query.graph({ entity: "region", fields: ["id"] });
+    regionResult = data;
+  }
   const region = regionResult[0];
-  logger.info("Finished seeding regions.");
-
-  logger.info("Seeding tax regions...");
-  await createTaxRegionsWorkflow(container).run({
-    input: countries.map((country_code) => ({
-      country_code,
-      provider_id: "tp_system",
-    })),
-  });
-  logger.info("Finished seeding tax regions.");
 
   logger.info("Seeding stock location data...");
   const { result: stockLocationResult } = await createStockLocationsWorkflow(
@@ -401,35 +418,149 @@ export default async function seedDemoData({ container }: ExecArgs) {
     input: {
       products: [
         {
-          title: "Medusa T-Shirt",
+          title: "Electrotion Developer Board",
           category_ids: [
-            categoryResult.find((cat) => cat.name === "Shirts")!.id,
+            categoryResult.find((cat) => cat.name === "Merch")!.id,
           ],
           description:
-            "Reimagine the feeling of a classic T-shirt. With our cotton T-shirts, everyday essentials no longer have to be ordinary.",
-          handle: "t-shirt",
-          weight: 400,
+            "A high-precision developer board for all your IoT needs.",
+          handle: "electrotion-dev-board",
+          weight: 150,
           status: ProductStatus.PUBLISHED,
           shipping_profile_id: shippingProfile.id,
           images: [
             {
-              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/tee-black-front.png",
+              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/coffee-mug.png",
+            }
+          ],
+          options: [
+            {
+              title: "Version",
+              values: ["V1", "V2"],
+            },
+          ],
+          variants: [
+            {
+              title: "V1",
+              sku: "ELEC-BOARD-V1",
+              options: {
+                Version: "V1",
+              },
+              prices: [
+                {
+                  amount: 4500,
+                  currency_code: "eur",
+                },
+                {
+                  amount: 5000,
+                  currency_code: "usd",
+                },
+              ],
             },
             {
-              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/tee-black-back.png",
+              title: "V2",
+              sku: "ELEC-BOARD-V2",
+              options: {
+                Version: "V2",
+              },
+              prices: [
+                {
+                  amount: 6000,
+                  currency_code: "eur",
+                },
+                {
+                  amount: 6500,
+                  currency_code: "usd",
+                },
+              ],
             },
+          ],
+          sales_channels: [
             {
-              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/tee-white-front.png",
+              id: defaultSalesChannel[0].id,
             },
+          ],
+        },
+        {
+          title: "Electrotion Starter Kit",
+          category_ids: [
+            categoryResult.find((cat) => cat.name === "Merch")!.id,
+          ],
+          description:
+            "Everything you need to get started with Electrotion in one simple kit.",
+          handle: "electrotion-starter-kit",
+          weight: 800,
+          status: ProductStatus.PUBLISHED,
+          shipping_profile_id: shippingProfile.id,
+          images: [
             {
-              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/tee-white-back.png",
-            },
+              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/sweatshirt-vintage-front.png",
+            }
           ],
           options: [
             {
               title: "Size",
-              values: ["S", "M", "L", "XL"],
+              values: ["Standard", "Pro"],
             },
+          ],
+          variants: [
+            {
+              title: "Standard",
+              sku: "ELEC-KIT-STD",
+              options: {
+                Size: "Standard",
+              },
+              prices: [
+                {
+                  amount: 15000,
+                  currency_code: "eur",
+                },
+                {
+                  amount: 16000,
+                  currency_code: "usd",
+                },
+              ],
+            },
+            {
+              title: "Pro",
+              sku: "ELEC-KIT-PRO",
+              options: {
+                Size: "Pro",
+              },
+              prices: [
+                {
+                  amount: 25000,
+                  currency_code: "eur",
+                },
+                {
+                  amount: 27000,
+                  currency_code: "usd",
+                },
+              ],
+            },
+          ],
+          sales_channels: [
+            {
+              id: defaultSalesChannel[0].id,
+            },
+          ],
+        },
+        {
+          title: "Mock Smartphone",
+          category_ids: [
+            categoryResult.find((cat) => cat.name === "Merch")!.id,
+          ],
+          description: "A highly advanced mock smartphone.",
+          handle: "mock-smartphone",
+          weight: 200,
+          status: ProductStatus.PUBLISHED,
+          shipping_profile_id: shippingProfile.id,
+          images: [
+            {
+              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/coffee-mug.png",
+            }
+          ],
+          options: [
             {
               title: "Color",
               values: ["Black", "White"],
@@ -437,145 +568,18 @@ export default async function seedDemoData({ container }: ExecArgs) {
           ],
           variants: [
             {
-              title: "S / Black",
-              sku: "SHIRT-S-BLACK",
+              title: "Black",
+              sku: "MOCK-PHONE-BLK",
               options: {
-                Size: "S",
                 Color: "Black",
               },
               prices: [
                 {
-                  amount: 10,
+                  amount: 80000,
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
-                  currency_code: "usd",
-                },
-              ],
-            },
-            {
-              title: "S / White",
-              sku: "SHIRT-S-WHITE",
-              options: {
-                Size: "S",
-                Color: "White",
-              },
-              prices: [
-                {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
-                },
-              ],
-            },
-            {
-              title: "M / Black",
-              sku: "SHIRT-M-BLACK",
-              options: {
-                Size: "M",
-                Color: "Black",
-              },
-              prices: [
-                {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
-                },
-              ],
-            },
-            {
-              title: "M / White",
-              sku: "SHIRT-M-WHITE",
-              options: {
-                Size: "M",
-                Color: "White",
-              },
-              prices: [
-                {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
-                },
-              ],
-            },
-            {
-              title: "L / Black",
-              sku: "SHIRT-L-BLACK",
-              options: {
-                Size: "L",
-                Color: "Black",
-              },
-              prices: [
-                {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
-                },
-              ],
-            },
-            {
-              title: "L / White",
-              sku: "SHIRT-L-WHITE",
-              options: {
-                Size: "L",
-                Color: "White",
-              },
-              prices: [
-                {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
-                },
-              ],
-            },
-            {
-              title: "XL / Black",
-              sku: "SHIRT-XL-BLACK",
-              options: {
-                Size: "XL",
-                Color: "Black",
-              },
-              prices: [
-                {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
-                },
-              ],
-            },
-            {
-              title: "XL / White",
-              sku: "SHIRT-XL-WHITE",
-              options: {
-                Size: "XL",
-                Color: "White",
-              },
-              prices: [
-                {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
+                  amount: 85000,
                   currency_code: "usd",
                 },
               ],
@@ -588,95 +592,40 @@ export default async function seedDemoData({ container }: ExecArgs) {
           ],
         },
         {
-          title: "Medusa Sweatshirt",
+          title: "Mock Laptop",
           category_ids: [
-            categoryResult.find((cat) => cat.name === "Sweatshirts")!.id,
+            categoryResult.find((cat) => cat.name === "Merch")!.id,
           ],
-          description:
-            "Reimagine the feeling of a classic sweatshirt. With our cotton sweatshirt, everyday essentials no longer have to be ordinary.",
-          handle: "sweatshirt",
-          weight: 400,
+          description: "A powerful mock laptop.",
+          handle: "mock-laptop",
+          weight: 1500,
           status: ProductStatus.PUBLISHED,
           shipping_profile_id: shippingProfile.id,
           images: [
             {
               url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/sweatshirt-vintage-front.png",
-            },
-            {
-              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/sweatshirt-vintage-back.png",
-            },
+            }
           ],
           options: [
             {
-              title: "Size",
-              values: ["S", "M", "L", "XL"],
+              title: "Specs",
+              values: ["Base", "Pro"],
             },
           ],
           variants: [
             {
-              title: "S",
-              sku: "SWEATSHIRT-S",
+              title: "Base",
+              sku: "MOCK-LAPTOP-BASE",
               options: {
-                Size: "S",
+                Specs: "Base",
               },
               prices: [
                 {
-                  amount: 10,
+                  amount: 120000,
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
-                  currency_code: "usd",
-                },
-              ],
-            },
-            {
-              title: "M",
-              sku: "SWEATSHIRT-M",
-              options: {
-                Size: "M",
-              },
-              prices: [
-                {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
-                },
-              ],
-            },
-            {
-              title: "L",
-              sku: "SWEATSHIRT-L",
-              options: {
-                Size: "L",
-              },
-              prices: [
-                {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
-                },
-              ],
-            },
-            {
-              title: "XL",
-              sku: "SWEATSHIRT-XL",
-              options: {
-                Size: "XL",
-              },
-              prices: [
-                {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
+                  amount: 130000,
                   currency_code: "usd",
                 },
               ],
@@ -689,196 +638,178 @@ export default async function seedDemoData({ container }: ExecArgs) {
           ],
         },
         {
-          title: "Medusa Sweatpants",
-          category_ids: [
-            categoryResult.find((cat) => cat.name === "Pants")!.id,
-          ],
-          description:
-            "Reimagine the feeling of classic sweatpants. With our cotton sweatpants, everyday essentials no longer have to be ordinary.",
-          handle: "sweatpants",
-          weight: 400,
-          status: ProductStatus.PUBLISHED,
-          shipping_profile_id: shippingProfile.id,
-          images: [
-            {
-              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/sweatpants-gray-front.png",
-            },
-            {
-              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/sweatpants-gray-back.png",
-            },
-          ],
-          options: [
-            {
-              title: "Size",
-              values: ["S", "M", "L", "XL"],
-            },
-          ],
-          variants: [
-            {
-              title: "S",
-              sku: "SWEATPANTS-S",
-              options: {
-                Size: "S",
-              },
-              prices: [
-                {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
-                },
-              ],
-            },
-            {
-              title: "M",
-              sku: "SWEATPANTS-M",
-              options: {
-                Size: "M",
-              },
-              prices: [
-                {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
-                },
-              ],
-            },
-            {
-              title: "L",
-              sku: "SWEATPANTS-L",
-              options: {
-                Size: "L",
-              },
-              prices: [
-                {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
-                },
-              ],
-            },
-            {
-              title: "XL",
-              sku: "SWEATPANTS-XL",
-              options: {
-                Size: "XL",
-              },
-              prices: [
-                {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
-                },
-              ],
-            },
-          ],
-          sales_channels: [
-            {
-              id: defaultSalesChannel[0].id,
-            },
-          ],
-        },
-        {
-          title: "Medusa Shorts",
+          title: "Mock Smartwatch",
           category_ids: [
             categoryResult.find((cat) => cat.name === "Merch")!.id,
           ],
-          description:
-            "Reimagine the feeling of classic shorts. With our cotton shorts, everyday essentials no longer have to be ordinary.",
-          handle: "shorts",
-          weight: 400,
+          description: "A futuristic mock smartwatch.",
+          handle: "mock-smartwatch",
+          weight: 100,
           status: ProductStatus.PUBLISHED,
           shipping_profile_id: shippingProfile.id,
           images: [
             {
-              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/shorts-vintage-front.png",
-            },
-            {
-              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/shorts-vintage-back.png",
-            },
+              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/coffee-mug.png",
+            }
           ],
           options: [
             {
-              title: "Size",
-              values: ["S", "M", "L", "XL"],
+              title: "Strap",
+              values: ["Sport", "Metal"],
             },
           ],
           variants: [
             {
-              title: "S",
-              sku: "SHORTS-S",
+              title: "Sport",
+              sku: "MOCK-WATCH-SPORT",
               options: {
-                Size: "S",
+                Strap: "Sport",
               },
               prices: [
                 {
-                  amount: 10,
+                  amount: 25000,
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 27000,
                   currency_code: "usd",
                 },
               ],
             },
+          ],
+          sales_channels: [
             {
-              title: "M",
-              sku: "SHORTS-M",
+              id: defaultSalesChannel[0].id,
+            },
+          ],
+        },
+        {
+          title: "Mock Drone",
+          category_ids: [
+            categoryResult.find((cat) => cat.name === "Merch")!.id,
+          ],
+          description: "An automated mock drone for aerial recon.",
+          handle: "mock-drone",
+          weight: 2500,
+          status: ProductStatus.PUBLISHED,
+          shipping_profile_id: shippingProfile.id,
+          images: [
+            {
+              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/sweatshirt-vintage-front.png",
+            }
+          ],
+          options: [
+            {
+              title: "Camera",
+              values: ["4K", "8K"],
+            },
+          ],
+          variants: [
+            {
+              title: "4K",
+              sku: "MOCK-DRONE-4K",
               options: {
-                Size: "M",
+                Camera: "4K",
               },
               prices: [
                 {
-                  amount: 10,
+                  amount: 350000,
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 380000,
                   currency_code: "usd",
                 },
               ],
             },
+          ],
+          sales_channels: [
             {
-              title: "L",
-              sku: "SHORTS-L",
+              id: defaultSalesChannel[0].id,
+            },
+          ],
+        },
+        {
+          title: "Mock Robot Arm",
+          category_ids: [
+            categoryResult.find((cat) => cat.name === "Merch")!.id,
+          ],
+          description: "A precision robotic arm for assembly.",
+          handle: "mock-robot-arm",
+          weight: 5000,
+          status: ProductStatus.PUBLISHED,
+          shipping_profile_id: shippingProfile.id,
+          images: [
+            {
+              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/coffee-mug.png",
+            }
+          ],
+          options: [
+            {
+              title: "Payload",
+              values: ["1kg", "5kg"],
+            },
+          ],
+          variants: [
+            {
+              title: "1kg",
+              sku: "MOCK-ARM-1KG",
               options: {
-                Size: "L",
+                Payload: "1kg",
               },
               prices: [
                 {
-                  amount: 10,
+                  amount: 550000,
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 600000,
                   currency_code: "usd",
                 },
               ],
             },
+          ],
+          sales_channels: [
             {
-              title: "XL",
-              sku: "SHORTS-XL",
+              id: defaultSalesChannel[0].id,
+            },
+          ],
+        },
+        {
+          title: "Mock Sensor Kit",
+          category_ids: [
+            categoryResult.find((cat) => cat.name === "Merch")!.id,
+          ],
+          description: "A complete suite of mock sensors.",
+          handle: "mock-sensor-kit",
+          weight: 500,
+          status: ProductStatus.PUBLISHED,
+          shipping_profile_id: shippingProfile.id,
+          images: [
+            {
+              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/sweatshirt-vintage-front.png",
+            }
+          ],
+          options: [
+            {
+              title: "Type",
+              values: ["Basic", "Advanced"],
+            },
+          ],
+          variants: [
+            {
+              title: "Basic",
+              sku: "MOCK-SENSOR-BASIC",
               options: {
-                Size: "XL",
+                Type: "Basic",
               },
               prices: [
                 {
-                  amount: 10,
+                  amount: 15000,
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 18000,
                   currency_code: "usd",
                 },
               ],
